@@ -15,12 +15,7 @@ from cs285.infrastructure.utils import Path
 from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
 
-from cs285.agents.dqn_agent import DQNAgent
-from cs285.agents.sac_agent import SACAgent
-from cs285.infrastructure.dqn_utils import (
-        get_wrapper_by_name,
-        register_custom_envs,
-)
+#from cs285.agents.sac_agent import SACAgent
 
 # how many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
@@ -53,11 +48,11 @@ class RL_Trainer(object):
         #############
 
         # Make the gym environment
-        register_custom_envs()
-        if self.params['agent_class'] is SACAgent:
-            self.env = gym.make(self.params['env_name'], max_episode_steps=self.params['ep_len'])
-        else:
-            self.env = gym.make(self.params['env_name'])
+        # register_custom_envs()
+        # if self.params['agent_class'] is SACAgent:
+        #     self.env = gym.make(self.params['env_name'], max_episode_steps=self.params['ep_len'])
+        # else:
+        self.env = gym.make(self.params['env_name'])
         if self.params['video_log_freq'] > 0:
             self.episode_trigger = lambda episode: episode % self.params['video_log_freq'] == 0
         else:
@@ -113,19 +108,24 @@ class RL_Trainer(object):
 
 
         #############
-        ## AGENT
+        ## AGENTS
         #############
 
         agent_class = self.params['agent_class']
-        self.agent = agent_class(self.env, self.params['agent_params'])
+        self.agents = []
+        for i in range(self.params['num_agents']):
+            self.agents.append(agent_class(self.env, self.params['agent_params']))
+            self.agents[i].agent_num = i
+        for i in range(self.params['num_agents']):
+            self.agents[i].get_other_critics(self.agents[:i] + self.agents[i + 1:])
 
-    def run_training_loop(self, n_iter, collect_policy, eval_policy,
+    def run_training_loop(self, n_iter, collect_policies, eval_policies,
                           initial_expertdata=None, relabel_with_expert=False,
                           start_relabel_with_expert=1, expert_policy=None):
         """
         :param n_iter:  number of (dagger) iterations
-        :param collect_policy:
-        :param eval_policy:
+        :param collect_policies: policies to collect training data for each agent
+        :param eval_policy: policies to collect data to evaluate each agent
         :param initial_expertdata:
         :param relabel_with_expert:  whether to perform dagger
         :param start_relabel_with_expert: iteration at which to start relabel with expert
@@ -136,7 +136,7 @@ class RL_Trainer(object):
         self.total_envsteps = 0
         self.start_time = time.time()
 
-        print_period = 1000 if isinstance(self.agent, DQNAgent) else 1
+        print_period = 1
 
         for itr in range(n_iter):
             if itr % print_period == 0:
@@ -156,47 +156,37 @@ class RL_Trainer(object):
             else:
                 self.logmetrics = False
 
-            # collect trajectories, to be used for training
-            if isinstance(self.agent, DQNAgent):
-                # only perform an env step and add to replay buffer for DQN
-                self.agent.step_env()
-                envsteps_this_batch = 1
-                train_video_paths = None
-                paths = None
-            else:
+            #for each agent:
+            for agent_num, agent in enumerate(self.agents):
+                # collect trajectories, to be used for training
                 use_batchsize = self.params['batch_size']
                 if itr==0:
                     use_batchsize = self.params['batch_size_initial']
                 paths, envsteps_this_batch, train_video_paths = (
                     self.collect_training_trajectories(
-                        itr, initial_expertdata, collect_policy, use_batchsize)
+                        itr, initial_expertdata, collect_policies[agent_num], use_batchsize)
                 )
 
-            self.total_envsteps += envsteps_this_batch
+                self.total_envsteps += envsteps_this_batch
 
-            # relabel the collected obs with actions from a provided expert policy
-            if relabel_with_expert and itr>=start_relabel_with_expert:
-                paths = self.do_relabel_with_expert(expert_policy, paths)
+                # add collected data to replay buffer
+                agent.add_to_replay_buffer(paths)
 
-            # add collected data to replay buffer
-            self.agent.add_to_replay_buffer(paths)
+                # train agent (using sampled data from replay buffer)
+                if itr % print_period == 0:
+                    print("\nTraining agent...")
+                all_logs = self.train_agent(agent_num)
 
-            # train agent (using sampled data from replay buffer)
-            if itr % print_period == 0:
-                print("\nTraining agent...")
-            all_logs = self.train_agent()
+                # log/save
+                if self.logvideo or self.logmetrics:
+                    # perform logging
+                    print('\nBeginning logging procedure...')
+                    self.perform_logging(itr, agent_num, paths, 
+                        eval_policies[agent_num], train_video_paths, all_logs)
 
-            # log/save
-            if self.logvideo or self.logmetrics:
-                # perform logging
-                print('\nBeginning logging procedure...')
-                if isinstance(self.agent, DQNAgent):
-                    self.perform_dqn_logging(all_logs)
-                else:
-                    self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
-
-                if self.params['save_params']:
-                    self.agent.save('{}/agent_itr_{}.pt'.format(self.params['logdir'], itr))
+                    if self.params['save_params']:
+                        agent.save('{}/agent_{}_itr_{}.pt'.format(self.params['logdir'], 
+                            agent_num, itr))
 
 
     ####################################
@@ -320,55 +310,21 @@ class RL_Trainer(object):
 
         return paths, envsteps_this_batch, train_video_paths
 
-    def train_agent(self):
-        print('\nTraining agent using sampled data from replay buffer...')
+    def train_agent(self, agent_num):
+        print('\nTraining agent {} using sampled data from replay buffer...'.format(agent_num))
+        agent = self.agents[agent_num]
         all_logs = []
         for train_step in range(self.params['num_agent_train_steps_per_iter']):
-            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = self.agent.sample(self.params['train_batch_size'])
-            train_log = self.agent.train(
+            ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch = agent.sample(self.params['train_batch_size'])
+            train_log = agent.train(
                 ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
             all_logs.append(train_log)
         return all_logs
 
     ####################################
     ####################################
-    def perform_dqn_logging(self, all_logs):
-        last_log = all_logs[-1]
 
-        episode_rewards = self.env.get_episode_rewards()
-        if len(episode_rewards) > 0:
-            self.mean_episode_reward = np.mean(episode_rewards[-100:])
-        if len(episode_rewards) > 100:
-            self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
-
-        logs = OrderedDict()
-
-        logs["Train_EnvstepsSoFar"] = self.agent.t
-        print("Timestep %d" % (self.agent.t,))
-        if self.mean_episode_reward > -5000:
-            logs["Train_AverageReturn"] = np.mean(self.mean_episode_reward)
-        print("mean reward (100 episodes) %f" % self.mean_episode_reward)
-        if self.best_mean_episode_reward > -5000:
-            logs["Train_BestReturn"] = np.mean(self.best_mean_episode_reward)
-        print("best mean reward %f" % self.best_mean_episode_reward)
-
-        if self.start_time is not None:
-            time_since_start = (time.time() - self.start_time)
-            print("running time %f" % time_since_start)
-            logs["TimeSinceStart"] = time_since_start
-
-        logs.update(last_log)
-
-        sys.stdout.flush()
-
-        for key, value in logs.items():
-            print('{} : {}'.format(key, value))
-            self.logger.log_scalar(value, key, self.agent.t)
-        print('Done logging...\n\n')
-
-        self.logger.flush()
-
-    def perform_logging(self, itr, paths, eval_policy, train_video_paths, all_logs):
+    def perform_logging(self, itr, agent_num, paths, eval_policy, train_video_paths, all_logs):
 
         last_log = all_logs[-1]
 
@@ -404,25 +360,25 @@ class RL_Trainer(object):
 
             # decide what to log
             logs = OrderedDict()
-            logs["Eval_AverageReturn"] = np.mean(eval_returns)
-            logs["Eval_StdReturn"] = np.std(eval_returns)
-            logs["Eval_MaxReturn"] = np.max(eval_returns)
-            logs["Eval_MinReturn"] = np.min(eval_returns)
-            logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
+            logs["Agent{}_Eval_AverageReturn".format(agent_num)] = np.mean(eval_returns)
+            logs["Agent{}_Eval_StdReturn".format(agent_num)] = np.std(eval_returns)
+            logs["Agent{}_Eval_MaxReturn".format(agent_num)] = np.max(eval_returns)
+            logs["Agent{}_Eval_MinReturn".format(agent_num)] = np.min(eval_returns)
+            logs["Agent{}_Eval_AverageEpLen".format(agent_num)] = np.mean(eval_ep_lens)
 
-            logs["Train_AverageReturn"] = np.mean(train_returns)
-            logs["Train_StdReturn"] = np.std(train_returns)
-            logs["Train_MaxReturn"] = np.max(train_returns)
-            logs["Train_MinReturn"] = np.min(train_returns)
-            logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
+            logs["Agent{}_Train_AverageReturn".format(agent_num)] = np.mean(train_returns)
+            logs["Agent{}_Train_StdReturn".format(agent_num)] = np.std(train_returns)
+            logs["Agent{}_Train_MaxReturn".format(agent_num)] = np.max(train_returns)
+            logs["Agent{}_Train_MinReturn".format(agent_num)] = np.min(train_returns)
+            logs["Agent{}_Train_AverageEpLen".format(agent_num)] = np.mean(train_ep_lens)
 
-            logs["Train_EnvstepsSoFar"] = self.total_envsteps
-            logs["TimeSinceStart"] = time.time() - self.start_time
+            logs["Agent{}_Train_EnvstepsSoFar".format(agent_num)] = self.total_envsteps
+            logs["Agent{}_TimeSinceStart".format(agent_num)] = time.time() - self.start_time
             logs.update(last_log)
 
             if itr == 0:
                 self.initial_return = np.mean(train_returns)
-            logs["Initial_DataCollection_AverageReturn"] = self.initial_return
+            logs["Agent{}_Initial_DataCollection_AverageReturn".format(agent_num)] = self.initial_return
 
             # perform the logging
             for key, value in logs.items():
