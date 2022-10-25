@@ -3,6 +3,7 @@ from torch import nn
 from torch import optim
 import numpy as np
 import torch
+import itertools
 
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -64,6 +65,11 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
             self.advice_dim,
             n_layers=1,
             size=4
+        )
+        self.optimizer = optim.Adam(
+            itertools.chain(self.critic_network.parameters(),
+            self.advice_network.parameters()),
+            self.learning_rate,
         )
 
     def forward(self, obs, train_mode=False):
