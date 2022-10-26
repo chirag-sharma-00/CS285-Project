@@ -81,6 +81,7 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
         else:
             advice = torch.zeros(obs.shape[0], self.advice_dim)
         assert len(obs.shape) == len(advice.shape) and obs.shape[0] == advice.shape[0]
+        advice = advice.detach()
         obs = torch.cat([obs, advice], dim=1)
         return self.critic_network(obs).squeeze(1)
 
@@ -128,7 +129,7 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
 
         for i in range(self.num_grad_steps_per_target_update * self.num_target_updates):
             if i % self.num_grad_steps_per_target_update == 0:
-                v_tp1_values = self(next_ob_no).squeeze()
+                v_tp1_values = self(next_ob_no, train_mode=False).squeeze()
                 assert reward_n.shape == v_tp1_values.shape
                 target = reward_n + self.gamma * v_tp1_values * (1 - terminal_n)
                 target = target.detach()
