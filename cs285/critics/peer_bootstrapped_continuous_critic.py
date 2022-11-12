@@ -77,11 +77,11 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
         if train_mode and use_advice:
             outputs = [critic.forward(obs).unsqueeze(1) for critic in self.other_critics]
             outputs = torch.cat(outputs, dim=1)
+            outputs = outputs.detach()
             advice = self.advice_network(outputs)
         else:
             advice = torch.zeros(obs.shape[0], self.advice_dim)
         assert len(obs.shape) == len(advice.shape) and obs.shape[0] == advice.shape[0]
-        advice = advice.detach()
         obs = torch.cat([obs, advice], dim=1)
         return self.critic_network(obs).squeeze(1)
 
