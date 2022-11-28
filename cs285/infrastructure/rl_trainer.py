@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import pickle
 import os
 import sys
@@ -134,7 +134,7 @@ class RL_Trainer(object):
         """
 
         # init vars at beginning of training
-        self.total_envsteps = 0
+        self.total_envsteps = defaultdict(int)
         self.start_time = time.time()
 
         print_period = 1
@@ -168,7 +168,7 @@ class RL_Trainer(object):
                         itr, initial_expertdata, collect_policies[agent_num], use_batchsize)
                 )
 
-                self.total_envsteps += envsteps_this_batch
+                self.total_envsteps[agent_num] += envsteps_this_batch
 
                 # add collected data to replay buffer
                 agent.add_to_replay_buffer(paths)
@@ -188,95 +188,6 @@ class RL_Trainer(object):
                     if self.params['save_params']:
                         agent.save('{}/agent_{}_itr_{}.pt'.format(self.params['logdir'], 
                             agent_num, itr))
-
-
-    ####################################
-    ####################################
-
-    def run_sac_training_loop(self, n_iter, collect_policy, eval_policy):
-        """
-        :param n_iter:  number of (dagger) iterations
-        :param collect_policy:
-        :param eval_policy:
-        """
-
-        # init vars at beginning of training
-        self.total_envsteps = 0
-        self.start_time = time.time()
-        episode_step = 0
-        episode_return = 0
-        episode_stats = {'reward': [], 'ep_len': []}
-
-        done = False
-        print_period = 1000
-
-        for itr in range(n_iter):
-            if itr % print_period == 0:
-                print("\n\n********** Iteration %i ************"%itr)
-
-            # decide if videos should be rendered/logged at this iteration
-            if itr % self.params['video_log_freq'] == 0 and self.params['video_log_freq'] != -1:
-                self.logvideo = True
-            else:
-                self.logvideo = False
-
-            # decide if metrics should be logged
-            if self.params['scalar_log_freq'] == -1:
-                self.logmetrics = False
-            elif itr % self.params['scalar_log_freq'] == 0:
-                self.logmetrics = True
-            else:
-                self.logmetrics = False
-
-            use_batchsize = self.params['batch_size']
-            if itr==0:
-                use_batchsize = self.params['batch_size_initial']
-                print("\nSampling seed steps for training...")
-                paths, envsteps_this_batch = utils.sample_random_trajectories(self.env, use_batchsize, self.params['ep_len'])
-                train_video_paths = None
-                episode_stats['reward'].append(np.mean([np.sum(path['reward']) for path in paths]))
-                episode_stats['ep_len'].append(len(paths[0]['reward']))
-                self.total_envsteps += envsteps_this_batch
-            else:
-                if itr == 1 or done:
-                    obs = self.env.reset()
-                    episode_stats['reward'].append(episode_return)
-                    episode_stats['ep_len'].append(episode_step)
-                    episode_step = 0
-                    episode_return = 0
-
-                action = self.agent.actor.get_action(obs)[0]
-                next_obs, rew, done, _ = self.env.step(action)
-
-                episode_return += rew
-
-                episode_step += 1
-                self.total_envsteps += 1
-
-                if done:
-                    terminal = 1
-                else:
-                    terminal = 0
-                paths = [Path([obs], [], [action], [rew], [next_obs], [terminal])]
-                obs = next_obs
-
-            # add collected data to replay buffer
-            self.agent.add_to_replay_buffer(paths)
-
-            # train agent (using sampled data from replay buffer)
-            if itr % print_period == 0:
-                print("\nTraining agent...")
-            all_logs = self.train_agent()
-
-            # log/save
-            if self.logvideo or self.logmetrics:
-                # perform logging
-                print('\nBeginning logging procedure...')
-                self.perform_sac_logging(itr, episode_stats, eval_policy, train_video_paths, all_logs)
-                episode_stats = {'reward': [], 'ep_len': []}
-                if self.params['save_params']:
-                    self.agent.save('{}/agent_itr_{}.pt'.format(self.params['logdir'], itr))
-
 
     ####################################
     ####################################
@@ -373,7 +284,7 @@ class RL_Trainer(object):
             logs["Agent{}_Train_MinReturn".format(agent_num)] = np.min(train_returns)
             logs["Agent{}_Train_AverageEpLen".format(agent_num)] = np.mean(train_ep_lens)
 
-            logs["Agent{}_Train_EnvstepsSoFar".format(agent_num)] = self.total_envsteps
+            logs["Agent{}_Train_EnvstepsSoFar".format(agent_num)] = self.total_envsteps[agent_num]
             logs["Agent{}_TimeSinceStart".format(agent_num)] = time.time() - self.start_time
             logs.update(last_log)
 
@@ -385,75 +296,6 @@ class RL_Trainer(object):
             for key, value in logs.items():
                 print('{} : {}'.format(key, value))
                 self.logger.log_scalar(value, key, itr)
-            print('Done logging...\n\n')
-
-            self.logger.flush()
-
-
-    ####################################
-    ####################################
-
-    def perform_sac_logging(self, itr, stats, eval_policy, train_video_paths, all_logs):
-
-        last_log = all_logs[-1]
-
-        #######################
-
-        # collect eval trajectories, for logging
-        print("\nCollecting data for eval...")
-        eval_paths, eval_envsteps_this_batch = utils.eval_trajectories(self.env, eval_policy, self.params['eval_batch_size'], self.params['ep_len'])
-
-        # save eval rollouts as videos in tensorboard event file
-        if self.logvideo and train_video_paths != None:
-            print('\nCollecting video rollouts eval')
-            eval_video_paths = utils.sample_n_trajectories(self.env, eval_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
-
-            #save train/eval videos
-            print('\nSaving train rollouts as videos...')
-            self.logger.log_paths_as_videos(train_video_paths, itr, fps=self.fps, max_videos_to_save=MAX_NVIDEO,
-                                            video_title='train_rollouts')
-            self.logger.log_paths_as_videos(eval_video_paths, itr, fps=self.fps,max_videos_to_save=MAX_NVIDEO,
-                                             video_title='eval_rollouts')
-
-        #######################
-
-        # save eval metrics
-        if self.logmetrics:
-            # returns, for logging
-            eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
-
-            # episode lengths, for logging
-            eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
-
-            # decide what to log
-            logs = OrderedDict()
-            logs["Eval_AverageReturn"] = np.mean(eval_returns)
-            logs["Eval_StdReturn"] = np.std(eval_returns)
-            logs["Eval_MaxReturn"] = np.max(eval_returns)
-            logs["Eval_MinReturn"] = np.min(eval_returns)
-            logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
-
-            logs["Train_AverageReturn"] = np.mean(stats['reward'])
-            logs["Train_StdReturn"] = np.std(stats['reward'])
-            logs["Train_MaxReturn"] = np.max(stats['reward'])
-            logs["Train_MinReturn"] = np.min(stats['reward'])
-            logs["Train_AverageEpLen"] = np.mean(stats['ep_len'])
-
-            logs["Train_EnvstepsSoFar"] = self.total_envsteps
-            logs["TimeSinceStart"] = time.time() - self.start_time
-            logs.update(last_log)
-
-            if itr == 0:
-                self.initial_return = np.mean(stats['reward'])
-            logs["Initial_DataCollection_AverageReturn"] = self.initial_return
-
-            # perform the logging
-            for key, value in logs.items():
-                print('{} : {}'.format(key, value))
-                try:
-                    self.logger.log_scalar(value, key, itr)
-                except:
-                    pdb.set_trace()
             print('Done logging...\n\n')
 
             self.logger.flush()
