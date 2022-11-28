@@ -76,7 +76,7 @@ def main():
 
     parser.add_argument('--advice_dim', type=int, default=1)
     parser.add_argument('--critic_epsilon', type=float, default=0.9)
-    parser.add_argument('--discount', type=float, default=1.0)
+    parser.add_argument('--discount', type=float, default=0.99)
     parser.add_argument('--learning_rate', '-lr', type=float, default=5e-3)
     parser.add_argument('--dont_standardize_advantages', '-dsa', action='store_true')
     parser.add_argument('--num_target_updates', '-ntu', type=int, default=10)
