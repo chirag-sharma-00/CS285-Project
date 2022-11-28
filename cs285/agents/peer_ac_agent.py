@@ -31,7 +31,7 @@ class PeerACAgent(BaseAgent):
 
         self.replay_buffer = ReplayBuffer()
 
-    def get_other_critics(self, agents):
+    def set_peers(self, agents):
         # given a list of the other PeerACAgent agents in the system, obtains a list
         # of their PeerBootstrappedContinuousCritic critics
         self.other_critics = [agent.critic for agent in agents]

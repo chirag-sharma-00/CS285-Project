@@ -3,6 +3,7 @@ import pickle
 import os
 import sys
 import time
+from cs285.agents.peer_sac_agent import PeerSACAgent
 from cs285.infrastructure.atari_wrappers import ReturnWrapper
 
 import gym
@@ -49,10 +50,10 @@ class RL_Trainer(object):
 
         # Make the gym environment
         # register_custom_envs()
-        # if self.params['agent_class'] is SACAgent:
-        #     self.env = gym.make(self.params['env_name'], max_episode_steps=self.params['ep_len'])
-        # else:
-        self.env = gym.make(self.params['env_name'])
+        if self.params['agent_class'] is PeerSACAgent:
+            self.env = gym.make(self.params['env_name'], max_episode_steps=self.params['ep_len'])
+        else:
+            self.env = gym.make(self.params['env_name'])
         if self.params['video_log_freq'] > 0:
             self.episode_trigger = lambda episode: episode % self.params['video_log_freq'] == 0
         else:
@@ -117,7 +118,7 @@ class RL_Trainer(object):
             self.agents.append(agent_class(self.env, self.params['agent_params']))
             self.agents[i].agent_num = i
         for i in range(self.params['num_agents']):
-            self.agents[i].get_other_critics(self.agents[:i] + self.agents[i + 1:])
+            self.agents[i].set_peers(self.agents[:i] + self.agents[i + 1:])
 
     def run_training_loop(self, n_iter, collect_policies, eval_policies,
                           initial_expertdata=None, relabel_with_expert=False,
