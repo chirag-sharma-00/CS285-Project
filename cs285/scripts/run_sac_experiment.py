@@ -19,7 +19,9 @@ class SAC_Trainer(object):
             'learning_rate': params['learning_rate'],
             'init_temperature': params['init_temperature'],
             'actor_update_frequency': params['actor_update_frequency'],
-            'critic_target_update_frequency': params['critic_target_update_frequency']
+            'critic_target_update_frequency': params['critic_target_update_frequency'],
+            'epsilon': params['critic_epsilon'],
+            'advice_dim': params['advice_dim']
             }
 
         estimate_advantage_args = {
@@ -58,7 +60,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--env_name', type=str, default='HalfCheetah-v4')
-    parser.add_argument('--ep_len', type=int, default=200)
+    parser.add_argument('--ep_len', type=int, default=150)
     parser.add_argument('--exp_name', type=str, default='todo')
     parser.add_argument('--n_iter', '-n', type=int, default=200)
     
@@ -72,6 +74,8 @@ def main():
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=400) #steps collected per eval iteration
     parser.add_argument('--train_batch_size', '-tb', type=int, default=256) ##steps used per gradient step
 
+    parser.add_argument('--advice_dim', type=int, default=1)
+    parser.add_argument('--critic_epsilon', type=float, default=0.9)
     parser.add_argument('--discount', type=float, default=0.99)
     parser.add_argument('--init_temperature', '-temp', type=float, default=1.0)
     parser.add_argument('--learning_rate', '-lr', type=float, default=3e-4)

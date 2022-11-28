@@ -14,3 +14,7 @@ class BaseAgent(object):
 
     def save(self, path):
         raise NotImplementedError
+    
+    def set_peers(self, agents):
+        # function for peer agents
+        raise NotImplementedError

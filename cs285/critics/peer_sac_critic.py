@@ -1,3 +1,4 @@
+import itertools
 from .base_critic import BaseCritic
 from torch import nn
 from torch import optim
@@ -7,7 +8,6 @@ from cs285.infrastructure import sac_utils
 import torch
 
 class PeerSACCritic(nn.Module, BaseCritic):
-    # TODO: make this a peer critic
     """
         Notes on notation:
 
@@ -31,16 +31,18 @@ class PeerSACCritic(nn.Module, BaseCritic):
         self.learning_rate = hparams['learning_rate']
 
         # critic parameters
+        self.eps = hparams['epsilon']
+        self.advice_dim = hparams['advice_dim']
         self.gamma = hparams['gamma']
         self.Q1 = ptu.build_mlp(
-            self.ob_dim + self.ac_dim,
+            self.ob_dim + self.ac_dim + self.advice_dim,
             1,
             n_layers=self.n_layers,
             size=self.size,
             activation='relu'
         )
         self.Q2 = ptu.build_mlp(
-            self.ob_dim + self.ac_dim,
+            self.ob_dim + self.ac_dim + self.advice_dim,
             1,
             n_layers=self.n_layers,
             size=self.size,
@@ -55,10 +57,46 @@ class PeerSACCritic(nn.Module, BaseCritic):
         )
         # self.apply(sac_utils.weight_init)
 
-    def forward(self, obs: torch.Tensor, action: torch.Tensor):
+    def build_advice_net(self, other_critics):
+        #TODO: may need to make these choices hyperparameters
+        self.other_critics = other_critics
+        self.advice_network1 = ptu.build_mlp(
+            len(other_critics),
+            self.advice_dim,
+            n_layers=1,
+            size=4
+        ).to(ptu.device)
+        self.advice_network2 = ptu.build_mlp(
+            len(other_critics),
+            self.advice_dim,
+            n_layers=1,
+            size=4
+        ).to(ptu.device)
+        self.optimizer = optim.Adam(
+            self.parameters(),
+            self.learning_rate,
+        )
+    
+    def forward(self, obs: torch.Tensor, action: torch.Tensor, train_mode=False):
+        use_advice = np.random.choice([0, 1], p=[self.eps, 1 - self.eps])
+        if train_mode and use_advice:
+            outputs_ziped = [critic.forward(obs) for critic in self.other_critics]
+            outputs1 = [output_zipped[0].unsqueeze(1) for output_zipped in outputs_ziped]
+            outputs2 = [output_zipped[1].unsqueeze(1) for output_zipped in outputs_ziped]
+            outputs1 = torch.cat(outputs1, dim=1).detach()
+            outputs2 = torch.cat(outputs2, dim=1).detach()
+            advice1 = self.advice_network(outputs1)
+            advice2 = self.advice_network(outputs2)
+        else:
+            advice1, advice2 = (torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device), 
+                                torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device))
+        assert len(obs.shape) == len(advice1.shape) and obs.shape[0] == advice1.shape[0]
+        assert len(obs.shape) == len(advice2.shape) and obs.shape[0] == advice2.shape[0]
         obs_action = torch.cat([obs, action], dim=-1)
-        q1 = self.Q1(obs_action)
-        q2 = self.Q2(obs_action)
+        obs_action_advice1 = torch.cat([obs_action, advice1], dim=-1)
+        obs_action_advice2 = torch.cat([obs_action, advice1], dim=-1)
+        q1 = self.Q1(obs_action_advice1)
+        q2 = self.Q2(obs_action_advice2)
         return [q1, q2]
 
     def forward_np(self, obs: np.ndarray, action: np.ndarray):

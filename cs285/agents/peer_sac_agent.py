@@ -45,8 +45,8 @@ class PeerSACAgent(BaseAgent):
         self.replay_buffer = ReplayBuffer(max_size=100000)
         
     def set_peers(self, agents):
-        # TODO: implement the peer version of sac
-        return
+        self.other_critics = [agent.critic for agent in agents]
+        self.critic.build_advice_net(self.other_critics)
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
@@ -80,17 +80,16 @@ class PeerSACAgent(BaseAgent):
         loss = OrderedDict()
         for _ in range(self.agent_params['num_critic_updates_per_agent_update']):
             critic_loss = self.update_critic(ob_no, ac_na, next_ob_no, re_n, terminal_n)
-            loss['Critic_Loss'] = critic_loss
+            loss['Agent{}_Critic_Loss'.format(self.agent_num)] = critic_loss
             if self.training_step % self.critic_target_update_frequency == 0:
                 sac_utils.soft_update_params(self.critic, self.critic_target, self.critic_tau)
 
         if self.training_step % self.actor_update_frequency == 0:
             for _ in range(self.agent_params['num_actor_updates_per_agent_update']):
                 actor_loss, alpha_loss, temperature = self.actor.update(ob_no, self.critic)
-                loss['Actor_Loss'] = actor_loss
-                loss['Alpha_Loss'] = alpha_loss
-                loss['Temperature'] = temperature
-
+                loss['Agent{}_Actor_Loss'.format(self.agent_num)] = actor_loss
+                loss['Agent{}_Alpha_Loss'.format(self.agent_num)] = alpha_loss
+                loss['Agent{}_Temperature'.format(self.agent_num)] = temperature
         self.training_step += 1
 
         return loss
