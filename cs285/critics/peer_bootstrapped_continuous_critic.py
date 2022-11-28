@@ -49,7 +49,7 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
             1,
             n_layers=self.n_layers,
             size=self.size,
-        )
+        ).to(ptu.device)
         self.critic_network.to(ptu.device)
         self.loss = nn.MSELoss()
         self.optimizer = optim.Adam(
@@ -65,7 +65,7 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
             self.advice_dim,
             n_layers=1,
             size=4
-        )
+        ).to(ptu.device)
         self.optimizer = optim.Adam(
             itertools.chain(self.critic_network.parameters(),
             self.advice_network.parameters()),
@@ -80,7 +80,7 @@ class PeerBootstrappedContinuousCritic(nn.Module, BaseCritic):
             outputs = outputs.detach()
             advice = self.advice_network(outputs)
         else:
-            advice = torch.zeros(obs.shape[0], self.advice_dim)
+            advice = torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device)
         assert len(obs.shape) == len(advice.shape) and obs.shape[0] == advice.shape[0]
         obs = torch.cat([obs, advice], dim=1)
         return self.critic_network(obs).squeeze(1)
