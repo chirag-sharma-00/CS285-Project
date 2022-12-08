@@ -42,7 +42,7 @@ class PeerSACAgent(BaseAgent):
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.training_step = 0
-        self.replay_buffer = ReplayBuffer(max_size=100000)
+        self.replay_buffer = ReplayBuffer(max_size=100000//5)
         
     def set_peers(self, agents):
         self.other_critics = [agent.critic for agent in agents]
