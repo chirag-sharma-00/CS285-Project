@@ -21,7 +21,9 @@ class SAC_Trainer(object):
             'actor_update_frequency': params['actor_update_frequency'],
             'critic_target_update_frequency': params['critic_target_update_frequency'],
             'epsilon': params['critic_epsilon'],
-            'advice_dim': params['advice_dim']
+            'advice_dim': params['advice_dim'],
+            'advice_net_n_layers': params['advice_net_n_layers'],
+            'advice_net_size': params['advice_net_size']
             }
 
         estimate_advantage_args = {
@@ -81,6 +83,8 @@ def main():
     parser.add_argument('--learning_rate', '-lr', type=float, default=3e-4)
     parser.add_argument('--n_layers', '-l', type=int, default=2)
     parser.add_argument('--size', '-s', type=int, default=64)
+    parser.add_argument('--advice_net_n_layers', '-al', type=int, default=1)
+    parser.add_argument('--advice_net_size', '-as', type=int, default=16)
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', '-ngpu', action='store_true')
