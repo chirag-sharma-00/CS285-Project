@@ -43,7 +43,7 @@ class SACAgent(BaseAgent):
         self.critic_target.load_state_dict(self.critic.state_dict())
 
         self.training_step = 0
-        self.replay_buffer = ReplayBuffer(max_size=100000)
+        self.replay_buffer = ReplayBuffer(max_size=1000000//5)
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
@@ -77,7 +77,7 @@ class SACAgent(BaseAgent):
         loss = OrderedDict()
         for _ in range(self.agent_params['num_critic_updates_per_agent_update']):
             critic_loss = self.update_critic(ob_no, ac_na, next_ob_no, re_n, terminal_n)
-            loss['Critic_Loss'] = critic_loss
+            loss['Agent{}_Critic_Loss'.format(self.agent_num)] = critic_loss
             if self.training_step % self.critic_target_update_frequency == 0:
                 sac_utils.soft_update_params(self.critic, self.critic_target, self.critic_tau)
 

@@ -29,7 +29,7 @@ class PeerACAgent(BaseAgent):
         )
         self.critic = PeerBootstrappedContinuousCritic(self.agent_params)
 
-        self.replay_buffer = ReplayBuffer()
+        self.replay_buffer = ReplayBuffer(max_size=1000000//5)
 
     def set_peers(self, agents):
         # given a list of the other PeerACAgent agents in the system, obtains a list

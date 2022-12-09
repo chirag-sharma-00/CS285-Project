@@ -28,7 +28,7 @@ class ACAgent(BaseAgent):
         )
         self.critic = BootstrappedContinuousCritic(self.agent_params)
 
-        self.replay_buffer = ReplayBuffer()
+        self.replay_buffer = ReplayBuffer(max_size=1000000//5)
 
     def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):
         # TODO Implement the following pseudocode:
