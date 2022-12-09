@@ -33,7 +33,14 @@ class PeerSACCritic(nn.Module, BaseCritic):
         # critic parameters
         self.eps = hparams['epsilon']
         self.advice_dim = hparams['advice_dim']
+        self.adv_n_layers = hparams['advice_net_n_layers']
+        self.adv_size = hparams['advice_net_size']
         self.gamma = hparams['gamma']
+        #TODO: right now, during training, pass in the ob vector and another
+        #advice_dim length vector into Q networks: 
+        #with prob eps, this second vector is zero, otherwise it's a compressed 
+        #representation of the outputs of the other critics in the
+        #system (the advice) -- during eval time, always pass in 0 for advice
         self.Q1 = ptu.build_mlp(
             self.ob_dim + self.ac_dim + self.advice_dim,
             1,
@@ -58,19 +65,18 @@ class PeerSACCritic(nn.Module, BaseCritic):
         # self.apply(sac_utils.weight_init)
 
     def build_advice_net(self, other_critics):
-        #TODO: may need to make these choices hyperparameters
         self.other_critics = other_critics
         self.advice_network1 = ptu.build_mlp(
             len(other_critics),
             self.advice_dim,
-            n_layers=1,
-            size=4
+            n_layers=self.adv_n_layers,
+            size=self.adv_size
         ).to(ptu.device)
         self.advice_network2 = ptu.build_mlp(
             len(other_critics),
             self.advice_dim,
-            n_layers=1,
-            size=4
+            n_layers=self.adv_n_layers,
+            size=self.adv_size
         ).to(ptu.device)
         self.optimizer = optim.Adam(
             self.parameters(),

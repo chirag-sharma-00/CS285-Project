@@ -3,7 +3,11 @@ import pickle
 import os
 import sys
 import time
+from cs285.agents.ac_agent import ACAgent
+from cs285.agents.peer_ac_agent import PeerACAgent
 from cs285.agents.peer_sac_agent import PeerSACAgent
+from cs285.agents.sac_agent import SACAgent
+from cs285.policies.mean_policy import MeanPolicy
 from cs285.infrastructure.atari_wrappers import ReturnWrapper
 
 import gym
@@ -50,7 +54,7 @@ class RL_Trainer(object):
 
         # Make the gym environment
         # register_custom_envs()
-        if self.params['agent_class'] is PeerSACAgent:
+        if self.params['agent_class'] in [PeerSACAgent, SACAgent]:
             self.env = gym.make(self.params['env_name'], max_episode_steps=self.params['ep_len'])
         else:
             self.env = gym.make(self.params['env_name'])
@@ -117,8 +121,9 @@ class RL_Trainer(object):
         for i in range(self.params['num_agents']):
             self.agents.append(agent_class(self.env, self.params['agent_params']))
             self.agents[i].agent_num = i
-        for i in range(self.params['num_agents']):
-            self.agents[i].set_peers(self.agents[:i] + self.agents[i + 1:])
+        if agent_class in [PeerSACAgent, PeerACAgent]:
+            for i in range(self.params['num_agents']):
+                self.agents[i].set_peers(self.agents[:i] + self.agents[i + 1:])
 
     def run_training_loop(self, n_iter, collect_policies, eval_policies,
                           initial_expertdata=None, relabel_with_expert=False,
@@ -136,6 +141,7 @@ class RL_Trainer(object):
         # init vars at beginning of training
         self.total_envsteps = defaultdict(int)
         self.start_time = time.time()
+        agent_class = self.params['agent_class']
 
         print_period = 1
 
@@ -180,14 +186,22 @@ class RL_Trainer(object):
 
                 # log/save
                 if self.logvideo or self.logmetrics:
-                    # perform logging
-                    print('\nBeginning logging procedure...')
-                    self.perform_logging(itr, agent_num, paths, 
-                        eval_policies[agent_num], train_video_paths, all_logs)
+                    if agent_class in [PeerACAgent, PeerSACAgent]:
+                        # perform logging
+                        print('\nBeginning logging procedure...')
+                        self.perform_logging(itr, agent_num, paths, 
+                            eval_policies[agent_num], train_video_paths, all_logs)
 
                     if self.params['save_params']:
                         agent.save('{}/agent_{}_itr_{}.pt'.format(self.params['logdir'], 
                             agent_num, itr))
+                
+            #logging for ensemble case
+            if self.logmetrics and agent_class in [ACAgent, SACAgent]:
+                # perform logging
+                print('\nBeginning logging procedure...')
+                self.perform_logging_ensemble(itr, paths, MeanPolicy(eval_policies), 
+                                                train_video_paths, all_logs)
 
     ####################################
     ####################################
@@ -291,6 +305,73 @@ class RL_Trainer(object):
             if itr == 0:
                 self.initial_return = np.mean(train_returns)
             logs["Agent{}_Initial_DataCollection_AverageReturn".format(agent_num)] = self.initial_return
+
+            # perform the logging
+            for key, value in logs.items():
+                print('{} : {}'.format(key, value))
+                self.logger.log_scalar(value, key, itr)
+            print('Done logging...\n\n')
+
+            self.logger.flush()
+
+    ####################################
+    ####################################
+
+    def perform_logging_ensemble(self, itr, paths, eval_policy, train_video_paths, all_logs):
+
+        last_log = all_logs[-1]
+
+        #######################
+
+        # collect eval trajectories, for logging
+        print("\nCollecting data for eval...")
+        eval_paths, eval_envsteps_this_batch = utils.sample_trajectories(self.env, eval_policy, self.params['eval_batch_size'], self.params['ep_len'])
+
+        # save eval rollouts as videos in tensorboard event file
+        if self.logvideo and train_video_paths != None:
+            print('\nCollecting video rollouts eval')
+            eval_video_paths = utils.sample_n_trajectories(self.env, eval_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
+
+            #save train/eval videos
+            print('\nSaving train rollouts as videos...')
+            self.logger.log_paths_as_videos(train_video_paths, itr, fps=self.fps, max_videos_to_save=MAX_NVIDEO,
+                                            video_title='train_rollouts')
+            self.logger.log_paths_as_videos(eval_video_paths, itr, fps=self.fps,max_videos_to_save=MAX_NVIDEO,
+                                            video_title='eval_rollouts')
+
+        #######################
+
+        # save eval metrics
+        if self.logmetrics:
+            # returns, for logging
+            train_returns = [path["reward"].sum() for path in paths]
+            eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
+
+            # episode lengths, for logging
+            train_ep_lens = [len(path["reward"]) for path in paths]
+            eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
+
+            # decide what to log
+            logs = OrderedDict()
+            logs["Eval_AverageReturn"] = np.mean(eval_returns)
+            logs["Eval_StdReturn"] = np.std(eval_returns)
+            logs["Eval_MaxReturn"] = np.max(eval_returns)
+            logs["Eval_MinReturn"] = np.min(eval_returns)
+            logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
+
+            logs["Train_AverageReturn"] = np.mean(train_returns)
+            logs["Train_StdReturn"] = np.std(train_returns)
+            logs["Train_MaxReturn"] = np.max(train_returns)
+            logs["Train_MinReturn"] = np.min(train_returns)
+            logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
+
+            logs["Train_EnvstepsSoFar"] = self.total_envsteps[0]
+            logs["TimeSinceStart"] = time.time() - self.start_time
+            logs.update(last_log)
+
+            if itr == 0:
+                self.initial_return = np.mean(train_returns)
+            logs["Initial_DataCollection_AverageReturn"] = self.initial_return
 
             # perform the logging
             for key, value in logs.items():
