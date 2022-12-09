@@ -137,7 +137,7 @@ class RL_Trainer(object):
         self.total_envsteps = defaultdict(int)
         self.start_time = time.time()
 
-        print_period = 1
+        print_period = 1 if not isinstance(self.agent, PeerSACAgent) else 1000
 
         for itr in range(n_iter):
             if itr % print_period == 0:
