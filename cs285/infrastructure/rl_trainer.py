@@ -188,7 +188,7 @@ class RL_Trainer(object):
 
                 # log/save
                 if self.logvideo or self.logmetrics:
-                    if agent_class in [PeerACAgent, PeerSACAgent]:
+                    if agent_class in [PeerACAgent, PeerSACAgent] and not self.params['ensemble']:
                         # perform logging
                         print('\nBeginning logging procedure...')
                         self.perform_logging(itr, agent_num, paths, 
@@ -199,7 +199,7 @@ class RL_Trainer(object):
                             agent_num, itr))
                 
             #logging for ensemble case
-            if self.logmetrics and agent_class in [ACAgent, SACAgent]:
+            if self.logmetrics and (agent_class in [ACAgent, SACAgent] or self.params['ensemble']):
                 # perform logging
                 print('\nBeginning logging procedure...')
                 self.perform_logging_ensemble(itr, paths, MeanPolicy(eval_policies), 
