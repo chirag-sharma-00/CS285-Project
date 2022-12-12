@@ -14,10 +14,10 @@ def smooth(scalars, weight=0.6):  # Weight between 0 and 1
     return smoothed
 
 #peer learning vs 1-agent baseline
-folders = ["sac_peer_2_agents_HalfCheetah-v4_10-12-2022_00-34-08",
-           "sac_peer_3_agents_HalfCheetah-v4_10-12-2022_00-34-19",
-           "sac_peer_5_agents_HalfCheetah-v4_10-12-2022_01-58-48",
-           "sac_ensemble_1_agents_HalfCheetah-v4_09-12-2022_23-23-06"]
+folders = ["sac_peer_2_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_peer_5_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_ensemble_1_agents_1000_iter_HalfCheetah-v4_09-12-2022_23-23-06"]
 colors = ["brown", "blue", "purple", "black"]
 for folder in os.listdir('data'):
     if folder not in folders:
@@ -63,12 +63,12 @@ plt.ylabel("Eval_AverageReturn")
 plt.savefig("value_signals_peer_baseline_comparison.png", dpi=150)
 
 #peer learning vs ensemble
-folders = ["sac_peer_2_agents_HalfCheetah-v4_10-12-2022_00-34-08",
-           "sac_peer_3_agents_HalfCheetah-v4_10-12-2022_00-34-19",
-           "sac_peer_5_agents_HalfCheetah-v4_10-12-2022_01-58-48",
-           "sac_ensemble_2_agents_HalfCheetah-v4_09-12-2022_23-23-12",
-           "sac_ensemble_3_agents_HalfCheetah-v4_09-12-2022_23-23-33",
-           "sac_ensemble_5_agents_HalfCheetah-v4_10-12-2022_01-58-50"]
+folders = ["sac_peer_2_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_peer_5_agents_epsilon_0.6_adv_size_32_adv_dim_4_1000_iter_HalfCheetah-v4_11-12-2022_21-11-33",
+           "sac_ensemble_2_agents_1000_iter_HalfCheetah-v4_09-12-2022_23-23-12",
+           "sac_ensemble_3_agents_1000_iter_HalfCheetah-v4_09-12-2022_23-23-33",
+           "sac_ensemble_5_agents_1000_iter_HalfCheetah-v4_10-12-2022_01-58-50"]
 colors = ["blue", "black"]
 for folder in os.listdir('data'):
     if folder not in folders:
@@ -137,9 +137,9 @@ plt.ylabel("Eval_AverageReturn")
 plt.savefig("value_signals_peer_ensemble_comparison_5.png", dpi=150)
 
 #advice dim hyperparam variation
-folders = ["sac_peer_3_agents_adv_size_32_adv_dim_8_HalfCheetah-v4_10-12-2022_11-14-08",
-           "sac_peer_3_agents_adv_size_32_adv_dim_4_HalfCheetah-v4_10-12-2022_11-14-08",
-           "sac_peer_3_agents_adv_size_32_adv_dim_16_HalfCheetah-v4_10-12-2022_11-14-08"]
+folders = ["sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-31-13",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_8_500_iter_HalfCheetah-v4_11-12-2022_22-37-37",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_16_500_iter_HalfCheetah-v4_11-12-2022_22-37-37"]
 colors = ["brown", "blue", "purple"]
 Ys = []
 labels = []
@@ -158,7 +158,7 @@ for folder in os.listdir('data'):
                     Y[v.tag] = []
                 Y[v.tag].append(v.simple_value)
     Ys.append(list(Y.values()))
-    labels.append(folder.split("32_")[1].split("_Half")[0].replace("adv_dim_", "advice dim: "))
+    labels.append(folder.split("32_")[1].split("_500")[0].replace("adv_dim_", "advice dim: "))
 plt.figure()
 plt.tight_layout()
 for i, Ylist in enumerate(Ys):
@@ -172,9 +172,9 @@ plt.ylabel("Eval_AverageReturn")
 plt.savefig("value_signals_advice_dim_variation.png", dpi=150)
 
 #advice net size hyperparam variation
-folders = ["sac_peer_3_agents_adv_size_16_adv_dim_4_HalfCheetah-v4_10-12-2022_11-14-08",
-           "sac_peer_3_agents_adv_size_32_adv_dim_4_HalfCheetah-v4_10-12-2022_11-14-08",
-           "sac_peer_3_agents_adv_size_64_adv_dim_4_HalfCheetah-v4_10-12-2022_11-14-08"]
+folders = ["sac_peer_3_agents_epsilon_0.6_adv_size_16_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_22-37-37",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-31-13",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_64_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_22-37-37"]
 colors = ["brown", "blue", "purple"]
 Ys = []
 labels = []
@@ -193,7 +193,7 @@ for folder in os.listdir('data'):
                     Y[v.tag] = []
                 Y[v.tag].append(v.simple_value)
     Ys.append(list(Y.values()))
-    labels.append(folder.split("agents_")[1].split("_adv_dim")[0]
+    labels.append(folder.split("0.6_")[1].split("_adv_dim")[0]
                     .replace("adv_size_", "advice net size: "))
 plt.figure()
 plt.tight_layout()
@@ -206,3 +206,41 @@ plt.legend(loc="lower right")
 plt.xlabel("Iteration")
 plt.ylabel("Eval_AverageReturn")
 plt.savefig("value_signals_advice_net_size_variation.png", dpi=150)
+
+#epsilon hyperparam variation
+folders = ["sac_peer_3_agents_epsilon_0_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-12-22",
+           "sac_peer_3_agents_epsilon_0.1_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-31-13",
+           "sac_peer_3_agents_epsilon_0.3_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-31-13",
+           "sac_peer_3_agents_epsilon_0.6_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_18-31-13",
+           "sac_peer_3_agents_epsilon_1_adv_size_32_adv_dim_4_500_iter_HalfCheetah-v4_11-12-2022_17-35-38"]
+colors = ["black", "brown", "blue", "purple", "red"]
+Ys = []
+labels = []
+for folder in os.listdir('data'):
+    if folder not in folders:
+        continue
+    logdir = 'data/{}/events*'.format(folder)
+    for f in glob.glob(logdir):
+        if "events.out" in f:
+            eventfile = f
+    Y = {}
+    for e in summary_iterator(eventfile):
+        for v in e.summary.value:
+            if 'Eval_AverageReturn' in v.tag:
+                if v.tag not in Y.keys():
+                    Y[v.tag] = []
+                Y[v.tag].append(v.simple_value)
+    Ys.append(list(Y.values()))
+    labels.append(folder.split("agents_")[1].split("_adv_size")[0]
+                    .replace("epsilon_", "$\epsilon$: "))
+plt.figure()
+plt.tight_layout()
+for i, Ylist in enumerate(Ys):
+    for Y in Ylist:
+        plt.plot(range(0, 500, 10), smooth(Y), alpha=0.2, color=colors[i])
+    plt.plot(range(0, 500, 10), smooth(np.mean(Ylist, axis=0)), 
+                label="3 agent peer learning, " + labels[i], color=colors[i])
+plt.legend(loc="lower right")
+plt.xlabel("Iteration")
+plt.ylabel("Eval_AverageReturn")
+plt.savefig("value_signals_epsilon_variation.png", dpi=150)
