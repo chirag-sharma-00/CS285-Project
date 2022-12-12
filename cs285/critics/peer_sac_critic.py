@@ -87,9 +87,9 @@ class PeerSACCritic(nn.Module, BaseCritic):
     def forward(self, obs: torch.Tensor, action: torch.Tensor, train_mode=False):
         use_advice = np.random.choice([0, 1], p=[self.eps, 1 - self.eps])
         if train_mode and use_advice:
-            outputs_ziped = [critic.forward(obs, action, False) for critic in self.other_critics]
-            outputs1 = [output_zipped[0] for output_zipped in outputs_ziped]
-            outputs2 = [output_zipped[1] for output_zipped in outputs_ziped]
+            outputs_zipped = [critic.forward(obs, action) for critic in self.other_critics]
+            outputs1 = [output_zipped[0] for output_zipped in outputs_zipped]
+            outputs2 = [output_zipped[1] for output_zipped in outputs_zipped]
             outputs1 = torch.cat(outputs1, dim=1).detach()
             outputs2 = torch.cat(outputs2, dim=1).detach()
             advice1 = self.advice_network1(outputs1)

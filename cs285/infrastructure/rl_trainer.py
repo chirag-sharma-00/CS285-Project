@@ -143,7 +143,8 @@ class RL_Trainer(object):
         self.start_time = time.time()
         agent_class = self.params['agent_class']
 
-        print_period = 1 if not isinstance(self.agents[0], PeerSACAgent) else 1000
+        print_period = 1
+        #print_period = 1 if not isinstance(self.agents[0], PeerSACAgent) else 1000
 
         for itr in range(n_iter):
             if itr % print_period == 0:
@@ -164,7 +165,8 @@ class RL_Trainer(object):
                 self.logmetrics = False
 
             #for each agent:
-            for agent_num, agent in enumerate(self.agents):
+            for agent in self.agents:
+                agent_num = agent.agent_num
                 # collect trajectories, to be used for training
                 use_batchsize = self.params['batch_size']
                 if itr==0:
