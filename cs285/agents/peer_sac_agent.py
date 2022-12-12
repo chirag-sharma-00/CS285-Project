@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from cs285.critics.peer_sac_critic import PeerSACCritic
+from cs285.critics.peer_sac_critic_v2 import PeerSACCriticV2
 from cs285.infrastructure.replay_buffer import ReplayBuffer
 from cs285.infrastructure.utils import *
 from cs285.policies.sac_policy import MLPPolicySAC
@@ -37,7 +38,13 @@ class PeerSACAgent(BaseAgent):
         self.actor_update_frequency = self.agent_params['actor_update_frequency']
         self.critic_target_update_frequency = self.agent_params['critic_target_update_frequency']
 
-        self.critic = PeerSACCritic(self.agent_params)
+        if self.agent_params['critic_version'] == '1':
+            self.critic = PeerSACCritic(self.agent_params)
+        elif self.agent_params['critic_version'] == '2':
+            self.critic = PeerSACCriticV2(self.agent_params)
+        else:
+            raise NotImplementedError('Critic version not implemented')
+            
         self.critic_target = copy.deepcopy(self.critic).to(ptu.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
@@ -47,6 +54,7 @@ class PeerSACAgent(BaseAgent):
     def set_peers(self, agents):
         self.other_critics = [agent.critic for agent in agents]
         self.critic.build_advice_net(self.other_critics)
+        self.critic_target.build_advice_net(self.other_critics)
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
@@ -69,11 +77,12 @@ class PeerSACAgent(BaseAgent):
         current_Qs = self.critic(ob_no, ac_na, train_mode=True)
         for current_Q in current_Qs:
             critic_loss += self.critic.loss(current_Q, target_Q)
-
+        
         # Optimize the critic
         self.critic.optimizer.zero_grad()
         critic_loss.backward()
         self.critic.optimizer.step()
+        
         return critic_loss.item()
 
     def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):

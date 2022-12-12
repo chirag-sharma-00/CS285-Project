@@ -7,7 +7,7 @@ from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure import sac_utils
 import torch
 
-class PeerSACCritic(nn.Module, BaseCritic):
+class PeerSACCriticV2(nn.Module, BaseCritic):
     """
         Notes on notation:
 
@@ -22,7 +22,7 @@ class PeerSACCritic(nn.Module, BaseCritic):
         is None
     """
     def __init__(self, hparams):
-        super(PeerSACCritic, self).__init__()
+        super(PeerSACCriticV2, self).__init__()
         self.ob_dim = hparams['ob_dim']
         self.ac_dim = hparams['ac_dim']
         self.discrete = hparams['discrete']
@@ -35,7 +35,6 @@ class PeerSACCritic(nn.Module, BaseCritic):
         self.advice_dim = hparams['advice_dim']
         self.adv_n_layers = hparams['advice_net_n_layers']
         self.adv_size = hparams['advice_net_size']
-        self.other_critics = [] # This is set when advice network is built
         self.gamma = hparams['gamma']
         #TODO: right now, during training, pass in the ob vector and another
         #advice_dim length vector into Q networks: 
@@ -87,13 +86,13 @@ class PeerSACCritic(nn.Module, BaseCritic):
     def forward(self, obs: torch.Tensor, action: torch.Tensor, train_mode=False):
         use_advice = np.random.choice([0, 1], p=[self.eps, 1 - self.eps])
         if train_mode and use_advice:
-            outputs_zipped = [critic.forward(obs, action) for critic in self.other_critics]
-            outputs1 = [output_zipped[0] for output_zipped in outputs_zipped]
-            outputs2 = [output_zipped[1] for output_zipped in outputs_zipped]
+            outputs_ziped = [critic.forward(obs) for critic in self.other_critics]
+            outputs1 = [output_zipped[0].unsqueeze(1) for output_zipped in outputs_ziped]
+            outputs2 = [output_zipped[1].unsqueeze(1) for output_zipped in outputs_ziped]
             outputs1 = torch.cat(outputs1, dim=1).detach()
             outputs2 = torch.cat(outputs2, dim=1).detach()
-            advice1 = self.advice_network1(outputs1)
-            advice2 = self.advice_network2(outputs2)
+            advice1 = self.advice_network(outputs1)
+            advice2 = self.advice_network(outputs2)
         else:
             advice1, advice2 = (torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device), 
                                 torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device))
@@ -102,9 +101,7 @@ class PeerSACCritic(nn.Module, BaseCritic):
         obs_action = torch.cat([obs, action], dim=-1)
         obs_action_advice1 = torch.cat([obs_action, advice1], dim=-1)
         obs_action_advice2 = torch.cat([obs_action, advice1], dim=-1)
-        
         q1 = self.Q1(obs_action_advice1)
         q2 = self.Q2(obs_action_advice2)
         return [q1, q2]
 
-        

@@ -1,5 +1,6 @@
 import os
 import time
+import json
 
 from cs285.agents.peer_sac_agent import PeerSACAgent
 from cs285.infrastructure.rl_trainer import RL_Trainer
@@ -23,7 +24,8 @@ class SAC_Trainer(object):
             'epsilon': params['critic_epsilon'],
             'advice_dim': params['advice_dim'],
             'advice_net_n_layers': params['advice_net_n_layers'],
-            'advice_net_size': params['advice_net_size']
+            'advice_net_size': params['advice_net_size'],
+            'critic_version': params['critic_version']
             }
 
         estimate_advantage_args = {
@@ -65,6 +67,7 @@ def main():
     parser.add_argument('--ep_len', type=int, default=150)
     parser.add_argument('--exp_name', type=str, default='todo')
     parser.add_argument('--n_iter', '-n', type=int, default=200)
+    parser.add_argument('--test', action='store_true')
     
     parser.add_argument('--num_agents', type=int, default=2)
     parser.add_argument('--num_agent_train_steps_per_iter', type=int, default=1)
@@ -76,6 +79,7 @@ def main():
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=400) #steps collected per eval iteration
     parser.add_argument('--train_batch_size', '-tb', type=int, default=256) ##steps used per gradient step
 
+    parser.add_argument('--critic_version', type=str, default='1')
     parser.add_argument('--advice_dim', type=int, default=1)
     parser.add_argument('--critic_epsilon', type=float, default=0.9)
     parser.add_argument('--discount', type=float, default=0.99)
@@ -103,7 +107,10 @@ def main():
     ### CREATE DIRECTORY FOR LOGGING
     ##################################
 
-    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
+    if params['test']:
+        data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data_test')
+    else:
+        data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
@@ -113,6 +120,10 @@ def main():
     params['logdir'] = logdir
     if not(os.path.exists(logdir)):
         os.makedirs(logdir)
+                
+    # Log params
+    with open(logdir+"/params.json", "w") as outfile:
+        json.dump(params, outfile)
 
     print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
 
