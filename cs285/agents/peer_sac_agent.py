@@ -93,7 +93,7 @@ class PeerSACAgent(BaseAgent):
             end.append(ptu.to_numpy(critic.forward(ob_no, ac_na, False)[0]))
         end = np.vstack(end)
         
-        print("DEBUG", end - initial)
+        print("DEBUG", np.sum(end - initial, axis=1))
         
         return critic_loss.item()
 
