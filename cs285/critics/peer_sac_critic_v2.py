@@ -80,7 +80,7 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
         )
     
     def forward_with_advice(self, obs: torch.Tensor, action: torch.Tensor, train_mode=False):
-        use_advice = np.random.uniform() > self.eps
+        use_advice = np.random.choice([0, 1], p=[self.eps, 1 - self.eps])
         if train_mode and len(self.other_critics) > 0 and use_advice:
             # TODO: implement the average advice version
             random_peer = random.choice(self.other_critics)
