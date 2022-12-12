@@ -64,7 +64,7 @@ class MLPPolicySAC(MLPPolicy):
         dist = self(obs)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        actor_Qs = critic(obs, action)
+        actor_Qs = critic.forward(obs, action)
         actor_Q = torch.min(*actor_Qs)
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 

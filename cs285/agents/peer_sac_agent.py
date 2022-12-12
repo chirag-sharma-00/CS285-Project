@@ -54,6 +54,7 @@ class PeerSACAgent(BaseAgent):
     def set_peers(self, agents):
         self.other_critics = [agent.critic for agent in agents]
         self.critic.build_advice_net(self.other_critics)
+        self.critic_target.build_advice_net(self.other_critics)
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
@@ -65,7 +66,7 @@ class PeerSACAgent(BaseAgent):
         with torch.no_grad():
             dist = self.actor(next_ob_no)
             next_action = dist.rsample()
-            next_Qs = self.critic_target(next_ob_no, next_action)
+            next_Qs = self.critic_target.forward(next_ob_no, next_action, True)
             next_Q = torch.min(*next_Qs)
             target_Q = reward_n + ((1-terminal_n) * self.gamma * next_Q)
             next_log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
@@ -73,14 +74,27 @@ class PeerSACAgent(BaseAgent):
 
         critic_loss = 0
         # get current Q estimates
-        current_Qs = self.critic(ob_no, ac_na)
+        current_Qs = self.critic.forward(ob_no, ac_na, True)
         for current_Q in current_Qs:
             critic_loss += self.critic.loss(current_Q, target_Q)
 
+        initial = []
+        for critic in self.other_critics:
+            initial.append(ptu.to_numpy(critic.forward(ob_no, ac_na, False)[0]))
+        initial = np.vstack(initial)
+        
         # Optimize the critic
         self.critic.optimizer.zero_grad()
         critic_loss.backward()
         self.critic.optimizer.step()
+        
+        end = []
+        for critic in self.other_critics:
+            end.append(ptu.to_numpy(critic.forward(ob_no, ac_na, False)[0]))
+        end = np.vstack(end)
+        
+        print("DEBUG", end - initial)
+        
         return critic_loss.item()
 
     def train(self, ob_no, ac_na, re_n, next_ob_no, terminal_n):
