@@ -36,6 +36,7 @@ class SAC_Trainer(object):
             'num_agent_train_steps_per_iter': params['num_agent_train_steps_per_iter'],
             'num_critic_updates_per_agent_update': params['num_critic_updates_per_agent_update'],
             'num_actor_updates_per_agent_update': params['num_actor_updates_per_agent_update'],
+            'ensemble': params['ensemble']
         }
 
         agent_params = {**computation_graph_args, **estimate_advantage_args, **train_args}
@@ -89,6 +90,7 @@ def main():
     parser.add_argument('--size', '-s', type=int, default=64)
     parser.add_argument('--advice_net_n_layers', '-al', type=int, default=1)
     parser.add_argument('--advice_net_size', '-as', type=int, default=16)
+    parser.add_argument('--ensemble', default=False, action='store_true')
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', '-ngpu', action='store_true')
