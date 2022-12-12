@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from cs285.critics.peer_sac_critic import PeerSACCritic
+from cs285.critics.peer_sac_critic_v2 import PeerSACCriticV2
 from cs285.infrastructure.replay_buffer import ReplayBuffer
 from cs285.infrastructure.utils import *
 from cs285.policies.sac_policy import MLPPolicySAC
@@ -37,7 +38,13 @@ class PeerSACAgent(BaseAgent):
         self.actor_update_frequency = self.agent_params['actor_update_frequency']
         self.critic_target_update_frequency = self.agent_params['critic_target_update_frequency']
 
-        self.critic = PeerSACCritic(self.agent_params)
+        if self.agent_params['critic_version'] == '1':
+            self.critic = PeerSACCritic(self.agent_params)
+        elif self.agent_params['critic_version'] == '2':
+            self.critic = PeerSACCriticV2(self.agent_params)
+        else:
+            raise NotImplementedError('Critic version not implemented')
+            
         self.critic_target = copy.deepcopy(self.critic).to(ptu.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 

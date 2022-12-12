@@ -7,7 +7,7 @@ from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure import sac_utils
 import torch
 
-class PeerSACCritic(nn.Module, BaseCritic):
+class PeerSACCriticV2(nn.Module, BaseCritic):
     """
         Notes on notation:
 
@@ -22,7 +22,7 @@ class PeerSACCritic(nn.Module, BaseCritic):
         is None
     """
     def __init__(self, hparams):
-        super(PeerSACCritic, self).__init__()
+        super(PeerSACCriticV2, self).__init__()
         self.ob_dim = hparams['ob_dim']
         self.ac_dim = hparams['ac_dim']
         self.discrete = hparams['discrete']
@@ -101,9 +101,7 @@ class PeerSACCritic(nn.Module, BaseCritic):
         obs_action = torch.cat([obs, action], dim=-1)
         obs_action_advice1 = torch.cat([obs_action, advice1], dim=-1)
         obs_action_advice2 = torch.cat([obs_action, advice1], dim=-1)
-        
         q1 = self.Q1(obs_action_advice1)
         q2 = self.Q2(obs_action_advice2)
         return [q1, q2]
 
-        
