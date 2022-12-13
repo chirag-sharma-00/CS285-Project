@@ -287,36 +287,36 @@ for folder in os.listdir('data'):
         Ys_3agents_ensemble = list(Y.values())
     elif "ensemble_5_agents" in folder:
         Ys_5agents_ensemble = list(Y.values())
-    ###
-    plt.figure()
-    plt.tight_layout()
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_2agents_peer, axis=0)), 
-                label="2 agent peer learning ensemble", color=colors[0])
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_2agents_ensemble, axis=0)), 
-                label="2 agent vanilla ensemble", color=colors[1])
-    plt.legend(loc="lower right")
-    plt.xlabel("Iteration")
-    plt.ylabel("Eval_AverageReturn")
-    plt.savefig("value_signals_peer_vanilla_ensemble_comparison_2.png", dpi=150)
-    ###
-    plt.figure()
-    plt.tight_layout()
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_3agents_peer, axis=0)), 
-                label="3 agent peer learning ensemble", color=colors[0])
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_3agents_ensemble, axis=0)), 
-                label="3 agent vanilla ensemble", color=colors[1])
-    plt.legend(loc="lower right")
-    plt.xlabel("Iteration")
-    plt.ylabel("Eval_AverageReturn")
-    plt.savefig("value_signals_peer_vanilla_ensemble_comparison_3.png", dpi=150)
-    ###
-    plt.figure()
-    plt.tight_layout()
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_5agents_peer, axis=0)), 
-                label="5 agent peer learning ensemble", color=colors[0])
-    plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_5agents_ensemble, axis=0)), 
-                label="5 agent vanilla ensemble", color=colors[1])
-    plt.legend(loc="lower right")
-    plt.xlabel("Iteration")
-    plt.ylabel("Eval_AverageReturn")
-    plt.savefig("value_signals_peer_vanilla_ensemble_comparison_5.png", dpi=150)
+###
+plt.figure()
+plt.tight_layout()
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_2agents_peer, axis=0)), 
+            label="2 agent peer learning ensemble", color=colors[0])
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_2agents_ensemble, axis=0)), 
+            label="2 agent vanilla ensemble", color=colors[1])
+plt.legend(loc="lower right")
+plt.xlabel("Iteration")
+plt.ylabel("Eval_AverageReturn")
+plt.savefig("value_signals_peer_vanilla_ensemble_comparison_2.png", dpi=150)
+###
+plt.figure()
+plt.tight_layout()
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_3agents_peer, axis=0)), 
+            label="3 agent peer learning ensemble", color=colors[0])
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_3agents_ensemble, axis=0)), 
+            label="3 agent vanilla ensemble", color=colors[1])
+plt.legend(loc="lower right")
+plt.xlabel("Iteration")
+plt.ylabel("Eval_AverageReturn")
+plt.savefig("value_signals_peer_vanilla_ensemble_comparison_3.png", dpi=150)
+###
+plt.figure()
+plt.tight_layout()
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_5agents_peer, axis=0)), 
+            label="5 agent peer learning ensemble", color=colors[0])
+plt.plot(range(0, 1000, 10), smooth(np.mean(Ys_5agents_ensemble, axis=0)), 
+            label="5 agent vanilla ensemble", color=colors[1])
+plt.legend(loc="lower right")
+plt.xlabel("Iteration")
+plt.ylabel("Eval_AverageReturn")
+plt.savefig("value_signals_peer_vanilla_ensemble_comparison_5.png", dpi=150)
