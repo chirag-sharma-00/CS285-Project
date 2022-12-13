@@ -66,7 +66,7 @@ class PeerSACAgent(BaseAgent):
         with torch.no_grad():
             dist = self.actor(next_ob_no)
             next_action = dist.rsample()
-            next_Qs = self.critic_target(next_ob_no, next_action, train_mode=False)
+            next_Qs = self.critic_target.forward(next_ob_no, next_action, train_mode=False)
             next_Q = torch.min(*next_Qs)
             target_Q = reward_n + ((1-terminal_n) * self.gamma * next_Q)
             next_log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
@@ -74,7 +74,7 @@ class PeerSACAgent(BaseAgent):
 
         critic_loss = 0
         # get current Q estimates
-        current_Qs = self.critic(ob_no, ac_na, train_mode=True)
+        current_Qs = self.critic.forward(ob_no, ac_na, train_mode=True)
         for current_Q in current_Qs:
             critic_loss += self.critic.loss(current_Q, target_Q)
         

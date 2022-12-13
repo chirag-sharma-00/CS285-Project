@@ -82,7 +82,7 @@ def main():
 
     parser.add_argument('--critic_version', type=str, default='1')
     parser.add_argument('--advice_dim', type=int, default=1)
-    parser.add_argument('--critic_epsilon', type=float, default=0.9)
+    parser.add_argument('--critic_epsilon', type=float, default=0.1)
     parser.add_argument('--discount', type=float, default=0.99)
     parser.add_argument('--init_temperature', '-temp', type=float, default=1.0)
     parser.add_argument('--learning_rate', '-lr', type=float, default=3e-4)
