@@ -53,7 +53,7 @@ class SAC_Trainer(object):
         self.rl_trainer = RL_Trainer(self.params)
 
     def run_training_loop(self):
-        self.rl_trainer.run_training_loop(
+        self.rl_trainer.run_sac_training_loop(
             self.params['n_iter'],
             collect_policies = [agent.actor for agent in self.rl_trainer.agents],
             eval_policies = [agent.actor for agent in self.rl_trainer.agents],
@@ -96,7 +96,7 @@ def main():
     parser.add_argument('--no_gpu', '-ngpu', action='store_true')
     parser.add_argument('--which_gpu', '-gpu_id', default=0)
     parser.add_argument('--video_log_freq', type=int, default=-1)
-    parser.add_argument('--scalar_log_freq', type=int, default=10)
+    parser.add_argument('--scalar_log_freq', type=int, default=150) # This value should to be larger than ep_len
 
     parser.add_argument('--save_params', action='store_true')
 
