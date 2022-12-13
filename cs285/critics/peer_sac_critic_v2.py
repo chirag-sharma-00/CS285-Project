@@ -62,6 +62,7 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
             self.learning_rate,
         )
         self.other_critics = []
+        self.internal_params = list(self.parameters())
         # self.apply(sac_utils.weight_init)
     
     def build_advice_net(self, other_critics):
@@ -70,9 +71,8 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
         self.other_critics = other_critics
         
         for i, critic in enumerate(other_critics):
-            for j, param in enumerate(critic.parameters()):
+            for j, param in enumerate(critic.internal_params):
                 self.register_parameter(f"peer_{i}_param_{j}",param)
-        
         
         self.optimizer = optim.Adam(
             self.parameters(),
@@ -94,8 +94,8 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
         obs_action_advice = torch.cat([obs_action, advice], dim=-1)
         q1_advice1 = self.Q1(obs_action_advice)
         q2_advice2 = self.Q2(obs_action_advice)
-        q1, advice1 = q1_advice1[:, 0], q1_advice1[:, 1:]
-        q2, advice2 = q2_advice2[:, 0], q2_advice2[:, 1:]
+        q1, advice1 = q1_advice1[:, :1], q1_advice1[:, 1:]
+        q2, advice2 = q2_advice2[:, :1], q2_advice2[:, 1:]
         advice_out = (advice1 + advice2) / 2
         return [q1, q2, advice_out]
     

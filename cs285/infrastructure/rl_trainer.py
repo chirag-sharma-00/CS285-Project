@@ -3,6 +3,7 @@ import pickle
 import os
 import sys
 import time
+import copy
 from cs285.agents.ac_agent import ACAgent
 from cs285.agents.peer_ac_agent import PeerACAgent
 from cs285.agents.peer_sac_agent import PeerSACAgent
@@ -38,6 +39,7 @@ class RL_Trainer(object):
         # Get params, create logger
         self.params = params
         self.logger = Logger(self.params['logdir'])
+        self.logmetrics_sac = defaultdict(lambda: False)
 
         # Set random seeds
         seed = self.params['seed']
@@ -207,6 +209,104 @@ class RL_Trainer(object):
 
     ####################################
     ####################################
+    
+    def run_sac_training_loop(self, n_iter, collect_policies, eval_policies):
+        """
+        :param n_iter:  number of (dagger) iterations
+        :param collect_policy:
+        :param eval_policy:
+        """
+
+        # init vars at beginning of training
+        self.total_envsteps = defaultdict(int)
+        self.start_time = time.time()
+        episode_step = 0
+        episode_return = 0
+        episode_stats = defaultdict(lambda:{'reward': [], 'ep_len': []})
+        
+        # for SAC we need to put agents in different envs
+        train_envs = {}
+        for agent in self.agents:
+            train_envs[agent.agent_num] = copy.deepcopy(self.env)
+            
+        done = defaultdict(lambda: False)
+        obs = {}
+        episode_step = defaultdict(int)
+        episode_return = defaultdict(int)
+        
+        print_period = 1
+        
+        for itr in range(n_iter):
+            if itr % print_period == 0:
+                print("\n\n********** Iteration %i ************"%itr)
+
+            # decide if videos should be rendered/logged at this iteration
+            if itr % self.params['video_log_freq'] == 0 and self.params['video_log_freq'] != -1:
+                self.logvideo = True
+            else:
+                self.logvideo = False
+
+            # decide if metrics should be logged
+            if self.params['scalar_log_freq'] == -1:
+                self.logmetrics = False
+            elif itr % self.params['scalar_log_freq'] == 0:
+                self.logmetrics = True
+            else:
+                self.logmetrics = False
+
+            #for each agent:
+            for agent in self.agents:
+                agent_num = agent.agent_num
+                # collect trajectories, to be used for training
+                use_batchsize = self.params['batch_size']
+                if itr==0:
+                    use_batchsize = self.params['batch_size_initial']
+                    print("\nSampling seed steps for training...")
+                    paths, envsteps_this_batch = utils.sample_random_trajectories(self.env, use_batchsize, self.params['ep_len'])
+                    train_video_paths = None
+                    episode_stats[agent_num]['reward'].append(np.mean([np.sum(path['reward']) for path in paths]))
+                    episode_stats[agent_num]['ep_len'].append(len(paths[0]['reward']))
+                    self.total_envsteps[agent_num] += envsteps_this_batch
+                else:
+                    if itr == 1 or done[agent_num]:
+                        obs[agent_num] = train_envs[agent_num].reset()
+                        episode_stats[agent_num]['reward'].append(episode_return[agent_num])
+                        episode_stats[agent_num]['ep_len'].append(episode_step[agent_num])
+                        episode_step[agent_num] = 0
+                        episode_return[agent_num] = 0
+
+                    action = agent.actor.get_action(obs[agent_num])[0]
+                    next_obs, rew, done[agent_num], _ = train_envs[agent_num].step(action)
+
+                    episode_return[agent_num] += rew
+
+                    episode_step[agent_num] += 1
+                    self.total_envsteps[agent_num] += 1
+
+                    if done[agent_num]:
+                        terminal = 1
+                    else:
+                        terminal = 0
+                    paths = [Path([obs[agent_num]], [], [action], [rew], [next_obs], [terminal])]
+                    obs[agent_num] = next_obs
+
+                # add collected data to replay buffer
+                agent.add_to_replay_buffer(paths)
+
+                # train agent (using sampled data from replay buffer)
+                if itr % print_period == 0:
+                    print("\nTraining agent...")
+                all_logs = self.train_agent(agent_num)
+
+                # log/save
+                if self.logvideo or self.logmetrics:
+                    # perform logging
+                    print('\nBeginning logging procedure...')
+                    self.perform_sac_logging(itr, agent_num, episode_stats[agent_num], eval_policies[agent_num], train_video_paths, all_logs)
+                    episode_stats[agent_num] = {'reward': [], 'ep_len': []}
+                    if self.params['save_params']:
+                        agent.save('{}/agent_{}_itr_{}.pt'.format(self.params['logdir'], 
+                            agent_num, itr))
 
     def collect_training_trajectories(self, itr, initial_expertdata, collect_policy, num_transitions_to_sample, save_expert_data_to_disk=False):
         """
@@ -301,7 +401,7 @@ class RL_Trainer(object):
             logs["Agent{}_Train_AverageEpLen".format(agent_num)] = np.mean(train_ep_lens)
 
             logs["Agent{}_Train_EnvstepsSoFar".format(agent_num)] = self.total_envsteps[agent_num]
-            logs["Agent{}_TimeSinceStart".format(agent_num)] = time.time() - self.start_time
+            logs["TimeSinceStart"] = time.time() - self.start_time
             logs.update(last_log)
 
             if itr == 0:
@@ -318,6 +418,70 @@ class RL_Trainer(object):
 
     ####################################
     ####################################
+    def perform_sac_logging(self, itr, agent_num, stats, eval_policy, train_video_paths, all_logs):
+        last_log = all_logs[-1]
+
+        #######################
+
+        # collect eval trajectories, for logging
+        print("\nCollecting data for eval...")
+        eval_paths, eval_envsteps_this_batch = utils.eval_trajectories(self.env, eval_policy, self.params['eval_batch_size'], self.params['ep_len'])
+
+        # save eval rollouts as videos in tensorboard event file
+        if self.logvideo and train_video_paths != None:
+            print('\nCollecting video rollouts eval')
+            eval_video_paths = utils.sample_n_trajectories(self.env, eval_policy, MAX_NVIDEO, MAX_VIDEO_LEN, True)
+
+            #save train/eval videos
+            print('\nSaving train rollouts as videos...')
+            self.logger.log_paths_as_videos(train_video_paths, itr, fps=self.fps, max_videos_to_save=MAX_NVIDEO,
+                                            video_title='train_rollouts')
+            self.logger.log_paths_as_videos(eval_video_paths, itr, fps=self.fps,max_videos_to_save=MAX_NVIDEO,
+                                             video_title='eval_rollouts')
+
+        #######################
+
+        # save eval metrics
+        if self.logmetrics:
+            # returns, for logging
+            eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
+
+            # episode lengths, for logging
+            eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
+
+            # decide what to log
+            logs = OrderedDict()
+            logs["Agent{}_Eval_AverageReturn".format(agent_num)] = np.mean(eval_returns)
+            logs["Agent{}_Eval_StdReturn".format(agent_num)] = np.std(eval_returns)
+            logs["Agent{}_Eval_MaxReturn".format(agent_num)] = np.max(eval_returns)
+            logs["Agent{}_Eval_MinReturn".format(agent_num)] = np.min(eval_returns)
+            logs["Agent{}_Eval_AverageEpLen".format(agent_num)] = np.mean(eval_ep_lens)
+
+
+            logs["Agent{}_Train_AverageReturn".format(agent_num)] = np.mean(stats['reward'])
+            logs["Agent{}_Train_StdReturn".format(agent_num)] = np.std(stats['reward'])
+            logs["Agent{}_Train_MaxReturn".format(agent_num)] = np.max(stats['reward'])
+            logs["Agent{}_Train_MinReturn".format(agent_num)] = np.min(stats['reward'])
+            logs["Agent{}_Train_AverageEpLen".format(agent_num)] = np.mean(stats['ep_len'])
+
+            logs["Agent{}_Train_EnvstepsSoFar".format(agent_num)] = self.total_envsteps[agent_num]
+            logs["TimeSinceStart"] = time.time() - self.start_time
+            logs.update(last_log)
+
+            if itr == 0:
+                self.initial_return = np.mean(stats['reward'])
+            logs["Agent{}_Initial_DataCollection_AverageReturn".format(agent_num)] = self.initial_return
+
+            # perform the logging
+            for key, value in logs.items():
+                print('{} : {}'.format(key, value))
+                try:
+                    self.logger.log_scalar(value, key, itr)
+                except:
+                    pdb.set_trace()
+            print('Done logging...\n\n')
+
+            self.logger.flush()
 
     def perform_logging_ensemble(self, itr, paths, eval_policy, train_video_paths, all_logs):
 
