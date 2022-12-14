@@ -1,3 +1,4 @@
+import itertools
 import random
 from typing import List
 from .base_critic import BaseCritic
@@ -70,12 +71,12 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
         # This name is kept for consistancy with the first version of PeerSACCritic
         self.other_critics = other_critics
         
-        for i, critic in enumerate(other_critics):
-            for j, param in enumerate(critic.internal_params):
-                self.register_parameter(f"peer_{i}_param_{j}",param)
+        optm_params = list(self.parameters())
+        for critic in other_critics:
+            optm_params += list(critic.parameters())        
         
         self.optimizer = optim.Adam(
-            self.parameters(),
+            optm_params,
             self.learning_rate
         )
     
