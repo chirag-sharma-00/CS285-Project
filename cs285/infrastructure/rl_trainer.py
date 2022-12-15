@@ -298,15 +298,26 @@ class RL_Trainer(object):
                     print("\nTraining agent...")
                 all_logs = self.train_agent(agent_num)
 
+                agent_class = self.params['agent_class']
                 # log/save
                 if self.logvideo or self.logmetrics:
-                    # perform logging
-                    print('\nBeginning logging procedure...')
-                    self.perform_sac_logging(itr, agent_num, episode_stats[agent_num], eval_policies[agent_num], train_video_paths, all_logs)
-                    episode_stats[agent_num] = {'reward': [], 'ep_len': []}
+                    if agent_class is PeerSACAgent and not self.params['ensemble']:
+                        # perform logging
+                        print('\nBeginning logging procedure...')
+                        self.perform_sac_logging(itr, agent_num, episode_stats[agent_num], 
+                            eval_policies[agent_num], train_video_paths, all_logs)
+                        episode_stats[agent_num] = {'reward': [], 'ep_len': []}
+
                     if self.params['save_params']:
                         agent.save('{}/agent_{}_itr_{}.pt'.format(self.params['logdir'], 
                             agent_num, itr))
+
+                #logging for ensemble case
+                if self.logmetrics and (agent_class is SACAgent or self.params['ensemble']):
+                    # perform logging
+                    print('\nBeginning logging procedure...')
+                    self.perform_logging_ensemble(itr, paths, MeanPolicy(eval_policies), 
+                                                    train_video_paths, all_logs)
 
     def collect_training_trajectories(self, itr, initial_expertdata, collect_policy, num_transitions_to_sample, save_expert_data_to_disk=False):
         """
