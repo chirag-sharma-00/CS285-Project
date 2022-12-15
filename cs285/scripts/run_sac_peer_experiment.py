@@ -90,7 +90,7 @@ def main():
     parser.add_argument('--size', '-s', type=int, default=64)
     parser.add_argument('--advice_net_n_layers', '-al', type=int, default=1)
     parser.add_argument('--advice_net_size', '-as', type=int, default=16)
-    parser.add_argument('--ensemble', default=False, action='store_true')
+    parser.add_argument('--ensemble', action='store_true')
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', '-ngpu', action='store_true')

@@ -234,7 +234,7 @@ class RL_Trainer(object):
         episode_step = defaultdict(int)
         episode_return = defaultdict(int)
         
-        print_period = 1
+        print_period = 1000
         
         for itr in range(n_iter):
             if itr % print_period == 0:
@@ -339,7 +339,7 @@ class RL_Trainer(object):
         return paths, envsteps_this_batch, train_video_paths
 
     def train_agent(self, agent_num):
-        print('\nTraining agent {} using sampled data from replay buffer...'.format(agent_num))
+        # print('\nTraining agent {} using sampled data from replay buffer...'.format(agent_num))
         agent = self.agents[agent_num]
         all_logs = []
         for train_step in range(self.params['num_agent_train_steps_per_iter']):
