@@ -52,9 +52,9 @@ class PeerSACAgent(BaseAgent):
         self.replay_buffer = ReplayBuffer(max_size=1000000//5)
         
     def set_peers(self, agents):
-        self.other_critics = [agent.critic for agent in agents]
-        self.critic.build_advice_net(self.other_critics)
-        self.critic_target.build_advice_net(self.other_critics)
+        self.other_agents = agents
+        self.critic.build_advice_net([agent.critic for agent in agents])
+        self.critic_target.build_advice_net([agent.critic for agent in agents])
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
@@ -66,7 +66,7 @@ class PeerSACAgent(BaseAgent):
         with torch.no_grad():
             dist = self.actor(next_ob_no)
             next_action = dist.rsample()
-            next_Qs = self.critic_target.forward(next_ob_no, next_action, train_mode=False)
+            next_Qs = self.critic_target.forward(next_ob_no, next_action, train_mode=True)
             next_Q = torch.min(*next_Qs)
             target_Q = reward_n + ((1-terminal_n) * self.gamma * next_Q)
             next_log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)

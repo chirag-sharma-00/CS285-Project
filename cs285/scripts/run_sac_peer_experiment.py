@@ -25,7 +25,8 @@ class SAC_Trainer(object):
             'advice_dim': params['advice_dim'],
             'advice_net_n_layers': params['advice_net_n_layers'],
             'advice_net_size': params['advice_net_size'],
-            'critic_version': params['critic_version']
+            'critic_version': params['critic_version'],
+            'self_advice': params['self_advice']
             }
 
         estimate_advantage_args = {
@@ -80,7 +81,8 @@ def main():
     parser.add_argument('--eval_batch_size', '-eb', type=int, default=400) #steps collected per eval iteration
     parser.add_argument('--train_batch_size', '-tb', type=int, default=256) ##steps used per gradient step
 
-    parser.add_argument('--critic_version', type=str, default='1')
+    parser.add_argument('--critic_version', type=str, default='2')
+    parser.add_argument('--self_advice', action='store_true')
     parser.add_argument('--advice_dim', type=int, default=1)
     parser.add_argument('--critic_epsilon', type=float, default=0.1)
     parser.add_argument('--discount', type=float, default=0.99)

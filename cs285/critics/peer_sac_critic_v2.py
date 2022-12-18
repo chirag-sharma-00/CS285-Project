@@ -1,5 +1,3 @@
-import itertools
-import random
 from typing import List
 from .base_critic import BaseCritic
 from torch import nn
@@ -31,6 +29,7 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
         self.size = hparams['size']
         self.n_layers = hparams['n_layers']
         self.learning_rate = hparams['learning_rate']
+        self.self_advice = hparams['self_advice']
 
         # critic parameters
         self.eps = hparams['epsilon']
@@ -62,14 +61,16 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
             self.parameters(),
             self.learning_rate,
         )
-        self.other_critics = []
+        self.ref_critics = []
         self.internal_params = list(self.parameters())
         # self.apply(sac_utils.weight_init)
     
     def build_advice_net(self, other_critics):
         # This is a misnomer. No advice network is built here. 
         # This name is kept for consistancy with the first version of PeerSACCritic
-        self.other_critics = other_critics
+        self.ref_critics = other_critics
+        if self.self_advice:
+            self.ref_critics += [self]
         
         optm_params = list(self.parameters())
         for critic in other_critics:
@@ -82,9 +83,10 @@ class PeerSACCriticV2(nn.Module, BaseCritic):
     
     def forward_with_advice(self, obs: torch.Tensor, action: torch.Tensor, train_mode=False):
         use_advice = np.random.choice([0, 1], p=[self.eps, 1 - self.eps])
-        if train_mode and len(self.other_critics) > 0 and use_advice:
+        if train_mode and len(self.ref_critics) > 0 and use_advice:
             # TODO: implement the average advice version
-            random_peer = random.choice(self.other_critics)
+            peer_idx = np.random.randint(len(self.ref_critics))
+            random_peer = self.ref_critics[peer_idx]
             _, _, advice = random_peer.forward_with_advice(obs, action, train_mode=False)
         else:
             advice = torch.zeros(obs.shape[0], self.advice_dim).to(ptu.device)
