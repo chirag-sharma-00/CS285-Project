@@ -54,7 +54,7 @@ class PeerSACAgent(BaseAgent):
     def set_peers(self, agents):
         self.other_agents = agents
         self.critic.build_advice_net([agent.critic for agent in agents])
-        self.critic_target.build_advice_net([agent.critic for agent in agents])
+        self.critic_target.build_advice_net([agent.critic_target for agent in agents])
 
     def update_critic(self, ob_no, ac_na, next_ob_no, re_n, terminal_n):
         ob_no = ptu.from_numpy(ob_no)
