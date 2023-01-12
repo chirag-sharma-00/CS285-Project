@@ -14,7 +14,8 @@
 - Find a way to fix the target network. It's not supposed to change until we soft-update it. Right now, every time a peer gets advice from a target network, gradients are backpropagated through the target network and it changes.
 - Find a way to add **positional encoding** in the advice which help the critic identify which agent the advice comes from. 
 - Investigate multi-task RL/ML structures in the critic. It needs to estimate q-values (task 1) and give advice (task 2).
-- **Investigate why our SAC implementation is not performing as well as in the papers here: https://arxiv.org/pdf/1802.09477.pdf and here https://arxiv.org/pdf/1801.01290.pdf**. Also Think about the **bimodal behavior** seen in the experimental results. 
+- Investigate why our SAC implementation is not performing as well as in the papers here: https://arxiv.org/pdf/1802.09477.pdf and here https://arxiv.org/pdf/1801.01290.pdf. Proposition: SAC is sensitive to reward scale. We are not scaling rewards. According to figure 3b and tabel 2 in the second paper, scaling rewards by 5 should give us better results. 
+- Think about the **bimodal behavior** seen in the experimental results. 
 - **Clearn up** repo. Cluster .sh, .png files
 - Update report with the changes. 
 
